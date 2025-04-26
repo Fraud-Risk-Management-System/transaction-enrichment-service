@@ -1,0 +1,13 @@
+{
+  "namespace": "com.fraudrisk.enrichment.avro",
+  "type": "record",
+  "name": "TransactionAvro",
+  "fields": [
+    {"name": "transactionId", "type": "string"},
+    {"name": "accountId", "type": "string"},
+    {"name": "customerId", "type": "string"},
+    {"name": "merchantId", "type": "string"},
+    {"name": "amount", "type": "double"},
+    {"name": "timestamp", "type": "long", "logicalType": "timestamp-millis"}
+  ]
+}

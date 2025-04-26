@@ -4,11 +4,11 @@ services:
   # Transaction Ingestion Service
   transaction-ingestion-service:
     build:
-      context: ./transaction-ingestion-service
+      context: ../transaction-ingestion-service
       dockerfile: Dockerfile
     container_name: transaction-ingestion-service
     ports:
-      - "8080:8080"
+      - "8083:8080"
     environment:
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - SPRING_KAFKA_PRODUCER_PROPERTIES_SCHEMA_REGISTRY_URL=http://schema-registry:8081
@@ -26,11 +26,11 @@ services:
   # Transaction Enrichment Service
   transaction-enrichment-service:
     build:
-      context: ./transaction-enrichment-service
+      context: .
       dockerfile: Dockerfile
     container_name: transaction-enrichment-service
     ports:
-      - "8081:8081"
+      - "8082:8081"
     environment:
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - SPRING_KAFKA_CONSUMER_PROPERTIES_SCHEMA_REGISTRY_URL=http://schema-registry:8081
@@ -38,7 +38,8 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/customer_data
       - SPRING_DATASOURCE_USERNAME=postgres
       - SPRING_DATASOURCE_PASSWORD=postgres
-      - SPRING_REDIS_HOST=redis
+      - SPRING_CACHE_TYPE=none
+      - SPRING_DATA_REDIS_REPOSITORIES_ENABLED=false
       - RISK_SERVICE_URL=http://risk-scoring-service:8085/api/risk
     depends_on:
       - kafka
@@ -56,11 +57,13 @@ services:
 
   # Risk Scoring Service (Mock)
   risk-scoring-service:
-    image: alpine
+    image: python:3.9-alpine
     container_name: risk-scoring-service
-    command: ash -c "apk add --no-cache python3 py3-pip && pip3 install flask && echo 'from flask import Flask, request, jsonify; app = Flask(__name__); @app.route(\"/api/risk\", methods=[\"POST\"]); def score_risk(): data = request.json; return jsonify({\"overallScore\": 0.3, \"identityRiskScore\": 0.2, \"behavioralRiskScore\": 0.3, \"transactionRiskScore\": 0.4, \"deviceRiskScore\": 0.3, \"geoLocationRiskScore\": 0.4, \"componentScores\": {\"device\": 0.3, \"geo\": 0.4, \"behavior\": 0.3}, \"riskLevel\": \"LOW\", \"riskReason\": \"No suspicious patterns detected\"}); if __name__ == \"__main__\": app.run(host=\"0.0.0.0\", port=8085)' > app.py && python3 app.py"
+    command: sh -c "pip install flask && python /app/risk_service.py"
     ports:
       - "8085:8085"
+    volumes:
+      - ./risk-service:/app
     networks:
       - fraud-detection-network
 
@@ -90,6 +93,9 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: true
+      KAFKA_MESSAGE_MAX_BYTES: 1048576000  # Set to ~1GB
+      KAFKA_REPLICA_FETCH_MAX_BYTES: 1048576000
+      KAFKA_FETCH_MESSAGE_MAX_BYTES: 1048576000
     networks:
       - fraud-detection-network
 
